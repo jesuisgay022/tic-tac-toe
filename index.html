@@ -99,13 +99,13 @@
     <script>
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyDxkUXrU6MRN9_xnpLOvXG-jyGiL8Mj_Oc",
-            authDomain: "tictactoe-multiplayer-7c9a9.firebaseapp.com",
-            databaseURL: "https://tictactoe-multiplayer-7c9a9-default-rtdb.firebaseio.com",
-            projectId: "tictactoe-multiplayer-7c9a9",
-            storageBucket: "tictactoe-multiplayer-7c9a9.appspot.com",
-            messagingSenderId: "654891370772",
-            appId: "1:654891370772:web:6932d89e6a940a91c6c7cd"
+            apiKey: "AIzaSyC4L8ICZDJnmgqe3GXmR_-L7lRGCuGVJ6Y",
+            authDomain: "tictactoe-mp-96e7f.firebaseapp.com",
+            databaseURL: "https://tictactoe-mp-96e7f-default-rtdb.firebaseio.com",
+            projectId: "tictactoe-mp-96e7f",
+            storageBucket: "tictactoe-mp-96e7f.appspot.com",
+            messagingSenderId: "339718837131",
+            appId: "1:339718837131:web:1cf08b3789e4c613c734bc"
         };
 
         // Initialize Firebase
@@ -183,31 +183,6 @@
             }
         }
 
-        // Start new game
-        function startNewGame() {
-            gameState.board = Array(9).fill('');
-            gameState.gameActive = true;
-            gameState.currentPlayer = 'X';
-            gameState.gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            gameState.isHost = true;
-            
-            // Clear Firebase game data
-            database.ref('games/' + gameState.gameCode).remove();
-            
-            // Set initial game state
-            database.ref('games/' + gameState.gameCode).set({
-                board: gameState.board,
-                lastMove: null,
-                player: 'X'
-            });
-            
-            gameCodeInput.value = gameState.gameCode;
-            status.textContent = `Game created! Share this code with your friend: ${gameState.gameCode}`;
-            
-            updateBoard();
-            setupGameListener();
-        }
-
         // Join game
         function joinGame() {
             const code = gameCodeInput.value.trim().toUpperCase();
@@ -220,17 +195,57 @@
             gameState.isHost = false;
             gameState.currentPlayer = 'O';
             
-            // Check if game exists
-            database.ref('games/' + code).once('value', snapshot => {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    gameState.board = data.board;
-                    updateBoard();
-                    status.textContent = "Game joined! Waiting for opponent...";
-                    setupGameListener();
-                } else {
-                    status.textContent = "Game not found. Please check the code.";
-                }
+            // Check if game exists and join
+            database.ref('games/' + code).once('value')
+                .then(snapshot => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        gameState.board = data.board;
+                        updateBoard();
+                        status.textContent = "Game joined! You are player O";
+                        setupGameListener();
+                        
+                        // Update game status to show player joined
+                        database.ref('games/' + code + '/status').set('joined');
+                    } else {
+                        status.textContent = "Game not found. Please check the code.";
+                    }
+                })
+                .catch(error => {
+                    console.error("Error joining game:", error);
+                    status.textContent = "Error joining game. Please try again.";
+                });
+        }
+
+        // Start new game
+        function startNewGame() {
+            gameState.board = Array(9).fill('');
+            gameState.gameActive = true;
+            gameState.currentPlayer = 'X';
+            gameState.gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            gameState.isHost = true;
+            
+            // Set initial game state in Firebase
+            database.ref('games/' + gameState.gameCode).set({
+                board: gameState.board,
+                lastMove: null,
+                player: 'X',
+                status: 'waiting'
+            }).then(() => {
+                gameCodeInput.value = gameState.gameCode;
+                status.textContent = `Game created! Share this code with your friend: ${gameState.gameCode}`;
+                updateBoard();
+                setupGameListener();
+                
+                // Listen for player joining
+                database.ref('games/' + gameState.gameCode + '/status').on('value', snapshot => {
+                    if (snapshot.val() === 'joined') {
+                        status.textContent = "Player O has joined! Your turn (X)";
+                    }
+                });
+            }).catch(error => {
+                console.error("Error creating game:", error);
+                status.textContent = "Error creating game. Please try again.";
             });
         }
 
