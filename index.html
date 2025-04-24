@@ -70,6 +70,10 @@
             background: #1976D2;
         }
     </style>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -93,6 +97,21 @@
         <button id="newGame">New Game</button>
     </div>
     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxkUXrU6MRN9_xnpLOvXG-jyGiL8Mj_Oc",
+            authDomain: "tictactoe-multiplayer-7c9a9.firebaseapp.com",
+            databaseURL: "https://tictactoe-multiplayer-7c9a9-default-rtdb.firebaseio.com",
+            projectId: "tictactoe-multiplayer-7c9a9",
+            storageBucket: "tictactoe-multiplayer-7c9a9.appspot.com",
+            messagingSenderId: "654891370772",
+            appId: "1:654891370772:web:6932d89e6a940a91c6c7cd"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
         let gameState = {
             board: Array(9).fill(''),
             currentPlayer: 'X',
@@ -123,18 +142,17 @@
             
             if (gameState.board[index] === '' && gameState.gameActive) {
                 gameState.board[index] = gameState.currentPlayer;
-                cell.textContent = gameState.currentPlayer;
-                cell.classList.add(gameState.currentPlayer.toLowerCase());
                 
-                // Send move to other player
+                // Update Firebase
                 if (gameState.gameCode) {
-                    localStorage.setItem(`game_${gameState.gameCode}`, JSON.stringify({
+                    database.ref('games/' + gameState.gameCode).set({
                         board: gameState.board,
                         lastMove: index,
                         player: gameState.currentPlayer
-                    }));
+                    });
                 }
                 
+                updateBoard();
                 checkGameStatus();
                 gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
             }
@@ -173,16 +191,21 @@
             gameState.gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             gameState.isHost = true;
             
-            cells.forEach(cell => {
-                cell.textContent = '';
-                cell.classList.remove('x', 'o');
+            // Clear Firebase game data
+            database.ref('games/' + gameState.gameCode).remove();
+            
+            // Set initial game state
+            database.ref('games/' + gameState.gameCode).set({
+                board: gameState.board,
+                lastMove: null,
+                player: 'X'
             });
             
             gameCodeInput.value = gameState.gameCode;
             status.textContent = `Game created! Share this code with your friend: ${gameState.gameCode}`;
             
-            // Clear any existing game data
-            localStorage.removeItem(`game_${gameState.gameCode}`);
+            updateBoard();
+            setupGameListener();
         }
 
         // Join game
@@ -198,21 +221,24 @@
             gameState.currentPlayer = 'O';
             
             // Check if game exists
-            const gameData = localStorage.getItem(`game_${code}`);
-            if (gameData) {
-                const data = JSON.parse(gameData);
-                gameState.board = data.board;
-                updateBoard();
-                status.textContent = "Game joined! Waiting for opponent...";
-            } else {
-                status.textContent = "Game not found. Please check the code.";
-            }
+            database.ref('games/' + code).once('value', snapshot => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    gameState.board = data.board;
+                    updateBoard();
+                    status.textContent = "Game joined! Waiting for opponent...";
+                    setupGameListener();
+                } else {
+                    status.textContent = "Game not found. Please check the code.";
+                }
+            });
         }
 
         // Update board
         function updateBoard() {
             cells.forEach((cell, index) => {
                 cell.textContent = gameState.board[index];
+                cell.classList.remove('x', 'o');
                 if (gameState.board[index] === 'X') {
                     cell.classList.add('x');
                 } else if (gameState.board[index] === 'O') {
@@ -221,24 +247,24 @@
             });
         }
 
-        // Poll for game updates
-        function pollGameState() {
+        // Setup Firebase listener
+        function setupGameListener() {
             if (gameState.gameCode) {
-                const gameData = localStorage.getItem(`game_${gameState.gameCode}`);
-                if (gameData) {
-                    const data = JSON.parse(gameData);
-                    if (data.board.join('') !== gameState.board.join('')) {
-                        gameState.board = data.board;
-                        updateBoard();
-                        checkGameStatus();
+                database.ref('games/' + gameState.gameCode).on('value', snapshot => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        if (data.board.join('') !== gameState.board.join('')) {
+                            gameState.board = data.board;
+                            updateBoard();
+                            checkGameStatus();
+                        }
                     }
-                }
+                });
             }
         }
 
-        // Initialize game and start polling
+        // Initialize game
         initGame();
-        setInterval(pollGameState, 1000);
     </script>
 </body>
 </html> 
