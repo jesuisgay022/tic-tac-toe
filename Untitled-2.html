@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Banana Clicker Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #fff7e6;
+        }
+        #banana {
+            width: 150px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        #banana:active {
+            transform: scale(0.95);
+        }
+        .upgrade-btn {
+            margin: 10px;
+            padding: 10px;
+            background-color: #ffdb4d;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .upgrade-btn:hover {
+            background-color: #ffd11a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Banana Clicker</h1>
+    <h2>Bananas: <span id="banana-count">0</span></h2>
+    <img id="banana" src="https://cdn.discordapp.com/attachments/1265723331772940442/1364839598236241950/download.png?ex=680b216d&is=6809cfed&hm=e4be1fab2ea002571f09db4f93853f85980f8b06a04edaa269eba4a991f87bdf&" alt="Banana">
+    
+    <div id="upgrades">
+        <h3>Upgrades</h3>
+        <button class="upgrade-btn" id="click-upgrade">
+            Upgrade Click (+1 per click)<br>
+            Cost: <span id="click-cost">10</span> bananas
+        </button>
+        <button class="upgrade-btn" id="auto-upgrade">
+            Buy Auto-Clicker (1 per second)<br>
+            Cost: <span id="auto-cost">50</span> bananas
+        </button>
+    </div>
+
+    <script>
+        let bananas = 0;
+        let clickPower = 1;
+        let autoClickers = 0;
+        let clickUpgradeCost = 10;
+        let autoClickerCost = 50;
+
+        const bananaCount = document.getElementById('banana-count');
+        const bananaImg = document.getElementById('banana');
+        const clickUpgradeBtn = document.getElementById('click-upgrade');
+        const autoUpgradeBtn = document.getElementById('auto-upgrade');
+
+        // Load saved game data
+        function loadGame() {
+            const savedGame = localStorage.getItem('bananaClickerSave');
+            if (savedGame) {
+                const gameData = JSON.parse(savedGame);
+                bananas = gameData.bananas;
+                clickPower = gameData.clickPower;
+                autoClickers = gameData.autoClickers;
+                clickUpgradeCost = gameData.clickUpgradeCost;
+                autoClickerCost = gameData.autoClickerCost;
+                updateDisplay();
+                document.getElementById('click-cost').textContent = clickUpgradeCost;
+                document.getElementById('auto-cost').textContent = autoClickerCost;
+            }
+        }
+
+        // Save game data
+        function saveGame() {
+            const gameData = {
+                bananas,
+                clickPower,
+                autoClickers,
+                clickUpgradeCost,
+                autoClickerCost
+            };
+            localStorage.setItem('bananaClickerSave', JSON.stringify(gameData));
+        }
+
+        bananaImg.addEventListener('click', () => {
+            bananas += clickPower;
+            updateDisplay();
+            saveGame();
+        });
+
+        clickUpgradeBtn.addEventListener('click', () => {
+            if (bananas >= clickUpgradeCost) {
+                bananas -= clickUpgradeCost;
+                clickPower += 1;
+                clickUpgradeCost = Math.round(clickUpgradeCost * 1.5);
+                document.getElementById('click-cost').textContent = clickUpgradeCost;
+                updateDisplay();
+                saveGame();
+            }
+        });
+
+        autoUpgradeBtn.addEventListener('click', () => {
+            if (bananas >= autoClickerCost) {
+                bananas -= autoClickerCost;
+                autoClickers += 1;
+                autoClickerCost = Math.round(autoClickerCost * 1.5);
+                document.getElementById('auto-cost').textContent = autoClickerCost;
+                updateDisplay();
+                saveGame();
+            }
+        });
+
+        function updateDisplay() {
+            bananaCount.textContent = Math.floor(bananas);
+        }
+
+        // Auto-clicker interval
+        setInterval(() => {
+            if (autoClickers > 0) {
+                bananas += autoClickers;
+                updateDisplay();
+                saveGame();
+            }
+        }, 1000);
+
+        // Load the game when the page loads
+        loadGame();
+    </script>
+</body>
+</html>

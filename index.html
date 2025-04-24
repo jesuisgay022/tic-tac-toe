@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Tic Tac Toe</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 300px;
+        }
+        .cell {
+            background: #f0f0f0;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            border: 2px solid #ccc;
+        }
+        .cell:hover {
+            background: #e0e0e0;
+        }
+        .x { color: #2196F3; }
+        .o { color: #F44336; }
+        #status {
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+        #newGame {
+            padding: 10px 20px;
+            font-size: 1.1em;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #newGame:hover {
+            background: #45a049;
+        }
+        #gameCode {
+            margin: 20px 0;
+            padding: 10px;
+            font-size: 1.1em;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        #joinGame {
+            padding: 10px 20px;
+            font-size: 1.1em;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        #joinGame:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Multiplayer Tic Tac Toe</h1>
+        <div id="status">Enter a game code to join or create a new game</div>
+        <div>
+            <input type="text" id="gameCode" placeholder="Enter game code">
+            <button id="joinGame">Join Game</button>
+        </div>
+        <div id="board" class="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <button id="newGame">New Game</button>
+    </div>
+    <script>
+        let gameState = {
+            board: Array(9).fill(''),
+            currentPlayer: 'X',
+            gameActive: true,
+            gameCode: null,
+            isHost: false
+        };
+
+        const cells = document.querySelectorAll('.cell');
+        const status = document.getElementById('status');
+        const newGameBtn = document.getElementById('newGame');
+        const joinGameBtn = document.getElementById('joinGame');
+        const gameCodeInput = document.getElementById('gameCode');
+
+        // Initialize game
+        function initGame() {
+            cells.forEach(cell => {
+                cell.addEventListener('click', () => handleCellClick(cell));
+            });
+            
+            newGameBtn.addEventListener('click', startNewGame);
+            joinGameBtn.addEventListener('click', joinGame);
+        }
+
+        // Handle cell click
+        function handleCellClick(cell) {
+            const index = cell.dataset.index;
+            
+            if (gameState.board[index] === '' && gameState.gameActive) {
+                gameState.board[index] = gameState.currentPlayer;
+                cell.textContent = gameState.currentPlayer;
+                cell.classList.add(gameState.currentPlayer.toLowerCase());
+                
+                // Send move to other player
+                if (gameState.gameCode) {
+                    localStorage.setItem(`game_${gameState.gameCode}`, JSON.stringify({
+                        board: gameState.board,
+                        lastMove: index,
+                        player: gameState.currentPlayer
+                    }));
+                }
+                
+                checkGameStatus();
+                gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+            }
+        }
+
+        // Check game status
+        function checkGameStatus() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6] // Diagonals
+            ];
+            
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (gameState.board[a] && 
+                    gameState.board[a] === gameState.board[b] && 
+                    gameState.board[a] === gameState.board[c]) {
+                    gameState.gameActive = false;
+                    status.textContent = `Player ${gameState.board[a]} wins!`;
+                    return;
+                }
+            }
+            
+            if (!gameState.board.includes('')) {
+                gameState.gameActive = false;
+                status.textContent = "It's a draw!";
+            }
+        }
+
+        // Start new game
+        function startNewGame() {
+            gameState.board = Array(9).fill('');
+            gameState.gameActive = true;
+            gameState.currentPlayer = 'X';
+            gameState.gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            gameState.isHost = true;
+            
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o');
+            });
+            
+            gameCodeInput.value = gameState.gameCode;
+            status.textContent = `Game created! Share this code with your friend: ${gameState.gameCode}`;
+            
+            // Clear any existing game data
+            localStorage.removeItem(`game_${gameState.gameCode}`);
+        }
+
+        // Join game
+        function joinGame() {
+            const code = gameCodeInput.value.trim().toUpperCase();
+            if (code.length !== 6) {
+                status.textContent = "Please enter a valid 6-character game code";
+                return;
+            }
+            
+            gameState.gameCode = code;
+            gameState.isHost = false;
+            gameState.currentPlayer = 'O';
+            
+            // Check if game exists
+            const gameData = localStorage.getItem(`game_${code}`);
+            if (gameData) {
+                const data = JSON.parse(gameData);
+                gameState.board = data.board;
+                updateBoard();
+                status.textContent = "Game joined! Waiting for opponent...";
+            } else {
+                status.textContent = "Game not found. Please check the code.";
+            }
+        }
+
+        // Update board
+        function updateBoard() {
+            cells.forEach((cell, index) => {
+                cell.textContent = gameState.board[index];
+                if (gameState.board[index] === 'X') {
+                    cell.classList.add('x');
+                } else if (gameState.board[index] === 'O') {
+                    cell.classList.add('o');
+                }
+            });
+        }
+
+        // Poll for game updates
+        function pollGameState() {
+            if (gameState.gameCode) {
+                const gameData = localStorage.getItem(`game_${gameState.gameCode}`);
+                if (gameData) {
+                    const data = JSON.parse(gameData);
+                    if (data.board.join('') !== gameState.board.join('')) {
+                        gameState.board = data.board;
+                        updateBoard();
+                        checkGameStatus();
+                    }
+                }
+            }
+        }
+
+        // Initialize game and start polling
+        initGame();
+        setInterval(pollGameState, 1000);
+    </script>
+</body>
+</html> 
